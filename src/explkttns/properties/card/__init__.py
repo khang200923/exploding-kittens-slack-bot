@@ -1,2 +1,0 @@
-class CardProperty:
-    pass

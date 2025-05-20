@@ -1,2 +1,0 @@
-class PlayerProperty:
-    pass
