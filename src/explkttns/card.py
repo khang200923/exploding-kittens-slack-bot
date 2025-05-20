@@ -110,7 +110,7 @@ class CardEnum(IntEnum):
     HAIRY_POTATO_CAT = 11
     CATTERMELON = 12
 
-card_enum_mapping = {
+card_enum_mapping: dict[CardEnum, type[Card]] = {
     CardEnum.ATTACK: Attack,
     CardEnum.SKIP: Skip,
     CardEnum.FAVOR: Favor,
