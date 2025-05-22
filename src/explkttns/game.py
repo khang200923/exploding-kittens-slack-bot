@@ -28,8 +28,7 @@ class Game:
     must_draw: bool = field(default=True)
 
     def __post_init__(self):
-        self.players = [Player(name) for name in self.names]
-        self.current_player = random.randrange(len(self.players))
+        self.players = []
         self.ready_cards = []
         self.deck = all_setup_cards()
         for name in self.names:
@@ -38,6 +37,7 @@ class Game:
             hand.append(Defuse())
             player = Player(name, hand=hand)
             self.players.append(player)
+        self.current_player = random.randrange(len(self.players))
         self.deck.extend([ExplodingKitten()] * (len(self.players) - 1))
         random.shuffle(self.deck)
 
@@ -45,7 +45,7 @@ class Game:
         player = self.players[playing_player]
         if player.dead:
             raise ValueError("Player is dead and cannot play cards.")
-        for card in cards:
+        for card in sorted(cards, reverse=True):
             if card < 0 or card >= len(player.hand):
                 raise ValueError("Invalid card index")
             played_card = player.hand.pop(card)
@@ -63,7 +63,7 @@ class Game:
         assert self.deck, "This is logically impossible"
         drawn_card = self.deck.pop(0)
         if isinstance(drawn_card, ExplodingKitten):
-            # shoot pull up the defuse card QUICK
+            # shoot use the defuse card QUICK
             if any(isinstance(card, Defuse) for card in player.hand):
                 player.hand.remove(next(card for card in player.hand if isinstance(card, Defuse)))
                 yield (self.current_player, InputTypes.WHERE_TO_INSERT_EXPLODING_KITTEN_CARD)
@@ -85,7 +85,14 @@ class Game:
         if self.turns_required > 0 and self.attacks_stack:
             raise IllegalMoveError("Must fulfill required turns or play an Attack card")
         if self.must_draw:
-            self.draw()
+            gen = self.draw()
+            try:
+                while True:
+                    request = next(gen)
+                    yield request
+            except StopIteration:
+                pass
+
         self.switch_player()
 
     def switch_player(self):
@@ -104,20 +111,22 @@ class Game:
         if self.nope_effect:
             self.nope_effect = False
             return
-        if len(self.ready_cards) == 0:
+        if len(ready_cards) == 0:
             return
-        if len(self.ready_cards) == 2:
-            if self.ready_cards[0].name != self.ready_cards[1].name:
+        if len(ready_cards) == 2:
+            if ready_cards[0].name != ready_cards[1].name:
                 raise IllegalMoveError("Cannot play two different cards as a special combo.")
             yield InputTypes.STOLEN_PLAYER
             stolen_player = self.players[self.incoming_input]
+            if not stolen_player.hand:
+                return # lmao
             stolen_card = stolen_player.hand.pop(random.randrange(len(stolen_player.hand)))
             player.hand.append(stolen_card)
             return
-        if len(self.ready_cards) == 3:
-            if self.ready_cards[0].name != self.ready_cards[1].name:
+        if len(ready_cards) == 3:
+            if ready_cards[0].name != ready_cards[1].name:
                 raise IllegalMoveError("Cannot play three different cards as a special combo.")
-            if self.ready_cards[0].name != self.ready_cards[2].name:
+            if ready_cards[0].name != ready_cards[2].name:
                 raise IllegalMoveError("Cannot play three different cards as a special combo.")
             yield (playing_player, InputTypes.STOLEN_PLAYER)
             stolen_player = self.players[self.incoming_input]
@@ -154,4 +163,5 @@ class Game:
             return
         assert not isinstance(ready_card, Nope), "Nope card should not be here..."
 
-        # cat cards don't have any effect
+        # cat cards alone don't have any effect
+        return
