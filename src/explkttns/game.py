@@ -15,10 +15,15 @@ class Game:
     players: List[Player] = field(init=False)
     deck: List[Card] = field(init=False)
     current_player: int = field(init=False)
+
     ready_cards: List[Card] = field(init=False)
     nope_effect: bool = field(default=False)
     incoming_input: int = field(default=0)
+
+    # important note: turns_required becomes the number of additional
+    # turns delegated to the second player while Attack cards stack
     turns_required: int = field(default=1)
+    attacks_stack: int = field(default=0)
 
     def __post_init__(self):
         self.players = [Player(name) for name in self.names]
@@ -33,7 +38,6 @@ class Game:
             self.players.append(player)
         self.deck.extend([ExplodingKitten()] * (len(self.players) - 1))
         random.shuffle(self.deck)
-        self.nope_effect = False
 
     def play(self, playing_player: int, cards: List[int]):
         player = self.players[playing_player]
@@ -47,6 +51,8 @@ class Game:
                 self.nope_effect = not self.nope_effect
                 return
             self.ready_cards.append(played_card)
+        if self.turns_required > 0:
+            self.turns_required -= 1
 
     def next_player(self, current_player: int) -> int:
         next_player = (current_player + 1) % len(self.players)
@@ -55,7 +61,14 @@ class Game:
         return next_player
 
     def switch_player(self):
+        if self.turns_required > 0 and self.attacks_stack:
+            raise IllegalMoveError("Must fulfill required turns or play an Attack card")
         self.current_player = self.next_player(self.current_player)
+        if self.attacks_stack:
+            self.turns_required += 2 * self.attacks_stack
+            self.attacks_stack = 0
+        else:
+            self.turns_required = 1
 
     def take_effect(self, playing_player: int):
         ready_cards = self.ready_cards.copy()
@@ -89,6 +102,8 @@ class Game:
             assert stolen_card is not None, "Card should be in hand"
             stolen_player.hand.remove(stolen_card)
             player.hand.append(stolen_card)
+
         ready_card = ready_cards[0]
+
         if isinstance(ready_card, Attack):
-            ...
+            self.attacks_stack += 1
