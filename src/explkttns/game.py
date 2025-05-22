@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import random
 from typing import List
 
-from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Nope, all_setup_cards, card_enum_mapping
+from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Nope, Skip, all_setup_cards, card_enum_mapping
 from explkttns.input import InputTypes
 from explkttns.player import Player
 
@@ -24,6 +24,8 @@ class Game:
     # turns delegated to the second player while Attack cards stack
     turns_required: int = field(default=1)
     attacks_stack: int = field(default=0)
+
+    must_draw: bool = field(default=True)
 
     def __post_init__(self):
         self.players = [Player(name) for name in self.names]
@@ -54,16 +56,25 @@ class Game:
         if self.turns_required > 0:
             self.turns_required -= 1
 
+    def draw(self):
+        ...
+
     def next_player(self, current_player: int) -> int:
         next_player = (current_player + 1) % len(self.players)
         while self.players[next_player].dead:
             next_player = (next_player + 1) % len(self.players)
         return next_player
 
-    def switch_player(self):
+    def end_turn(self):
         if self.turns_required > 0 and self.attacks_stack:
             raise IllegalMoveError("Must fulfill required turns or play an Attack card")
+        if self.must_draw:
+            self.draw()
+        self.switch_player()
+
+    def switch_player(self):
         self.current_player = self.next_player(self.current_player)
+        self.must_draw = True
         if self.attacks_stack:
             self.turns_required += 2 * self.attacks_stack
             self.attacks_stack = 0
@@ -107,3 +118,6 @@ class Game:
 
         if isinstance(ready_card, Attack):
             self.attacks_stack += 1
+            return
+        if isinstance(ready_card, Skip):
+            self.must_draw = False
