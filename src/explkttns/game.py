@@ -57,7 +57,23 @@ class Game:
             self.turns_required -= 1
 
     def draw(self):
-        ...
+        player = self.players[self.current_player]
+        assert not player.dead, "Wait something's wrong"
+        assert self.must_draw, "..."
+        assert self.deck, "This is logically impossible"
+        drawn_card = self.deck.pop(0)
+        if isinstance(drawn_card, ExplodingKitten):
+            # shoot pull up the defuse card QUICK
+            if any(isinstance(card, Defuse) for card in player.hand):
+                player.hand.remove(next(card for card in player.hand if isinstance(card, Defuse)))
+                yield (self.current_player, InputTypes.WHERE_TO_INSERT_EXPLODING_KITTEN_CARD)
+                self.deck.insert(self.incoming_input, drawn_card)
+                return
+            # you're dead lol
+            player.dead = True
+            return
+        player.hand.append(drawn_card)
+
 
     def next_player(self, current_player: int) -> int:
         next_player = (current_player + 1) % len(self.players)
@@ -121,14 +137,21 @@ class Game:
             return
         if isinstance(ready_card, Skip):
             self.must_draw = False
+            return
         if isinstance(ready_card, Favor):
             yield (playing_player, InputTypes.STOLEN_PLAYER)
             stolen_player = self.players[self.incoming_input]
             yield (self.incoming_input, InputTypes.STOLEN_CARD)
             stolen_card = stolen_player.hand.pop(self.incoming_input)
             player.hand.append(stolen_card)
+            return
         if isinstance(ready_card, Shuffle):
             random.shuffle(self.deck)
+            return
         if isinstance(ready_card, SeeTheFuture):
             future_cards = self.deck[:3] # colon three
             player.future_callback(future_cards)
+            return
+        assert not isinstance(ready_card, Nope), "Nope card should not be here..."
+
+        # cat cards don't have any effect

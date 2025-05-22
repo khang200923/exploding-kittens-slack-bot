@@ -57,23 +57,23 @@ class CatCard(Card):
     description: str = "Cat cards can be used to form pairs and steal cards from other players."
 
 @dataclass(frozen=True)
-class TacoCat(Card):
+class TacoCat(CatCard):
     name: str = "Taco Cat"
 
 @dataclass(frozen=True)
-class RainbowRalphingCat(Card):
+class RainbowRalphingCat(CatCard):
     name: str = "Rainbow Ralphing Cat"
 
 @dataclass(frozen=True)
-class BeardCat(Card):
+class BeardCat(CatCard):
     name: str = "Beard Cat"
 
 @dataclass(frozen=True)
-class HairyPotatoCat(Card):
+class HairyPotatoCat(CatCard):
     name: str = "Hairy Potato Cat"
 
 @dataclass(frozen=True)
-class Cattermelon(Card):
+class Cattermelon(CatCard):
     name: str = "Cattermelon"
 
 def all_setup_cards() -> List[Card]:
