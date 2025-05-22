@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import random
 from typing import List
 
-from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Nope, Skip, all_setup_cards, card_enum_mapping
+from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, Skip, all_setup_cards, card_enum_mapping
 from explkttns.input import InputTypes
 from explkttns.player import Player
 
@@ -103,9 +103,9 @@ class Game:
                 raise IllegalMoveError("Cannot play three different cards as a special combo.")
             if self.ready_cards[0].name != self.ready_cards[2].name:
                 raise IllegalMoveError("Cannot play three different cards as a special combo.")
-            yield InputTypes.STOLEN_PLAYER
+            yield (playing_player, InputTypes.STOLEN_PLAYER)
             stolen_player = self.players[self.incoming_input]
-            yield InputTypes.STOLEN_CARD_TYPE
+            yield (playing_player, InputTypes.STOLEN_CARD_TYPE)
             stolen_card_type = card_enum_mapping[CardEnum(self.incoming_input)]
             if not any(card.name == stolen_card_type.name for card in stolen_player.hand):
                 return
@@ -121,3 +121,9 @@ class Game:
             return
         if isinstance(ready_card, Skip):
             self.must_draw = False
+        if isinstance(ready_card, Favor):
+            yield (playing_player, InputTypes.STOLEN_PLAYER)
+            stolen_player = self.players[self.incoming_input]
+            yield (self.incoming_input, InputTypes.STOLEN_CARD)
+            stolen_card = stolen_player.hand.pop(self.incoming_input)
+            player.hand.append(stolen_card)
