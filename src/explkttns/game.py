@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 import random
 from typing import List
 
-from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, Skip, all_setup_cards, card_enum_mapping
+from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, SeeTheFuture, Shuffle, Skip, all_setup_cards, card_enum_mapping
 from explkttns.input import InputTypes
 from explkttns.player import Player
 
@@ -36,7 +36,7 @@ class Game:
             hand = random.sample(self.deck, k=4)
             self.deck = [card for card in self.deck if card not in hand]
             hand.append(Defuse())
-            player = Player(name, hand)
+            player = Player(name, hand=hand)
             self.players.append(player)
         self.deck.extend([ExplodingKitten()] * (len(self.players) - 1))
         random.shuffle(self.deck)
@@ -127,3 +127,8 @@ class Game:
             yield (self.incoming_input, InputTypes.STOLEN_CARD)
             stolen_card = stolen_player.hand.pop(self.incoming_input)
             player.hand.append(stolen_card)
+        if isinstance(ready_card, Shuffle):
+            random.shuffle(self.deck)
+        if isinstance(ready_card, SeeTheFuture):
+            future_cards = self.deck[:3] # colon three
+            player.future_callback(future_cards)
