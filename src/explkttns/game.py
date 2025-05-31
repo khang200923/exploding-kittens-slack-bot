@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import random
-from typing import List
+from typing import Iterator, List, Tuple
 
 from src.explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, SeeTheFuture, Shuffle, Skip, all_setup_cards, card_enum_mapping
 from src.explkttns.input import InputTypes
@@ -104,7 +104,7 @@ class Game:
         else:
             self.turns_required = 1
 
-    def take_effect(self, playing_player: int):
+    def take_effect(self, playing_player: int) -> Iterator[Tuple[int, InputTypes] | None]:
         ready_cards = self.ready_cards.copy()
         self.ready_cards.clear()
         player = self.players[playing_player]
@@ -116,8 +116,9 @@ class Game:
         if len(ready_cards) == 2:
             if ready_cards[0].name != ready_cards[1].name:
                 raise IllegalMoveError("Cannot play two different cards as a special combo.")
-            yield InputTypes.STOLEN_PLAYER
+            yield (playing_player, InputTypes.STOLEN_PLAYER)
             stolen_player = self.players[self.incoming_input]
+            yield None
             if not stolen_player.hand:
                 return # lmao
             stolen_card = stolen_player.hand.pop(random.randrange(len(stolen_player.hand)))
@@ -132,6 +133,7 @@ class Game:
             stolen_player = self.players[self.incoming_input]
             yield (playing_player, InputTypes.STOLEN_CARD_TYPE)
             stolen_card_type = card_enum_mapping[CardEnum(self.incoming_input)]
+            yield None
             if not any(card.name == stolen_card_type.name for card in stolen_player.hand):
                 return
             stolen_card = next((card for card in stolen_player.hand if card.name == stolen_card_type.name), None)
@@ -142,9 +144,11 @@ class Game:
         ready_card = ready_cards[0]
 
         if isinstance(ready_card, Attack):
+            yield None
             self.attacks_stack += 1
             return
         if isinstance(ready_card, Skip):
+            yield None
             self.must_draw = False
             return
         if isinstance(ready_card, Favor):
@@ -152,12 +156,15 @@ class Game:
             stolen_player = self.players[self.incoming_input]
             yield (self.incoming_input, InputTypes.STOLEN_CARD)
             stolen_card = stolen_player.hand.pop(self.incoming_input)
+            yield None
             player.hand.append(stolen_card)
             return
         if isinstance(ready_card, Shuffle):
+            yield None
             random.shuffle(self.deck)
             return
         if isinstance(ready_card, SeeTheFuture):
+            yield None
             future_cards = self.deck[:3] # colon three
             player.future_callback(future_cards)
             return
