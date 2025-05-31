@@ -3,6 +3,7 @@ from typing import Any, Dict, Tuple
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from markdown_to_mrkdwn import SlackMarkdownConverter
 import src.explkttns.game
 from src.explkttns.game import Game
 from src.explkttns.player import Player
@@ -10,6 +11,7 @@ from src.explkttns.player import Player
 load_dotenv()
 
 app = App()
+converter = SlackMarkdownConverter()
 
 class GameState(Enum):
     NEW = "new"
@@ -20,10 +22,65 @@ MsgId = Tuple[str, str] # (channel_id, ts)
 data: Dict[MsgId, Any] = {}
 
 @app.command("/explkttns")
-def handle_explkttns(ack, say, command):
+def handle_explkttns(ack, say, command, respond):
     ack()
+
+    if command['text'].strip().lower() == "ui_guide":
+        with open("interface.md", "r") as f:
+            content = f.read()
+            respond(
+                blocks=[
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": converter.convert(content)
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "Close this guide"
+                        },
+                        "accessory": {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Close",
+                                "emoji": True
+                            },
+                            "action_id": "close-guide"
+                        }
+                    }
+                ]
+            )
+
+    if command['text'].strip().lower() != "new":
+        respond(text="Invalid command. Use `/explkttns new` to start a new game.")
+        return
+
     # New game
     x = say(
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "New game of Exploding Kittens!",
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "Type `/explkttns ui_guide` for a guide on how to use the interface.",
+                        "emoji": True
+                    }
+                ]
+            }
+        ],
         text="New game of Exploding Kittens!"
     )
     ts = x['ts']
@@ -180,6 +237,16 @@ def handle_invite_modal(ack, view, body, client):
         text=f"<@{body['user']['id']}> has invited {', '.join(f'<@{x}>' for x in users)}"
     )
 
+@app.action("close-guide")
+def handle_close_guide(ack, body, client):
+    ack()
+    channel = body["channel"]["id"]
+    thread_ts = body["message"]["thread_ts"]
+
+    client.chat_delete(
+        channel=channel,
+        ts=thread_ts
+    )
 
 @app.action("start-game")
 def handle_start_game(ack, body, client):
