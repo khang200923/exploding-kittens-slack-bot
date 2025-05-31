@@ -3,7 +3,9 @@ from typing import Any, Dict, Tuple
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-import src.explkttns
+import src.explkttns.game
+from src.explkttns.game import Game
+from src.explkttns.player import Player
 
 load_dotenv()
 
@@ -58,22 +60,22 @@ def handle_explkttns(ack, say, command):
                     "action_id": "start-game"
                 }
             },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "Cancel the game"
-                },
-                "accessory": {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Cancel",
-                        "emoji": True
-                    },
-                    "action_id": "cancel-game"
-                }
-            }
+            # {
+            #     "type": "section",
+            #     "text": {
+            #         "type": "mrkdwn",
+            #         "text": "Cancel the game"
+            #     },
+            #     "accessory": {
+            #         "type": "button",
+            #         "text": {
+            #             "type": "plain_text",
+            #             "text": "Cancel",
+            #             "emoji": True
+            #         },
+            #         "action_id": "cancel-game"
+            #     }
+            # }
         ],
         metadata={
             'event_type': 'pregame_actions',
@@ -182,26 +184,43 @@ def handle_invite_modal(ack, view, body, client):
 @app.action("start-game")
 def handle_start_game(ack, body, client):
     ack()
+    channel = body["channel"]["id"]
+    thread_ts = body["message"]["thread_ts"]
 
-    if body["user"]["id"] != data[(body["channel"]["id"], body["message"]["thread_ts"])]['host']:
+    if body["user"]["id"] != data[(channel, thread_ts)]['host']:
         client.chat_postEphemeral(
-            channel=body["channel"]["id"],
-            thread_ts=body["message"]["thread_ts"],
+            channel=channel,
+            thread_ts=thread_ts,
             user=body["user"]["id"],
             text="Only the host can start the game."
         )
         return
 
-    if data[(body["channel"]["id"], body["message"]["thread_ts"])]['game_state'] != GameState.NEW:
+    if data[(channel, thread_ts)]['game_state'] != GameState.NEW:
         client.chat_postEphemeral(
-            channel=body["channel"]["id"],
-            thread_ts=body["message"]["thread_ts"],
+            channel=channel,
+            thread_ts=thread_ts,
             user=body["user"]["id"],
             text="You cannot start the game after it has started or completed."
         )
         return
 
-    ...
+    data[(channel, thread_ts)]['game_state'] = GameState.IN_PROGRESS
+    data[(channel, thread_ts)]['game'] = Game(
+        names=list(data[(channel, thread_ts)]['players'])
+    )
+
+    client.chat_postMessage(
+        channel=channel,
+        thread_ts=thread_ts,
+        text="The game has started! Players are: " + ", ".join(f"<@{x}>" for x in data[(channel, thread_ts)]['players'])
+    )
+    client.chat_postMessage(
+        channel=channel,
+        thread_ts=thread_ts,
+        text=f"It's <@{data[(channel, thread_ts)]['game'].current_player}> turn to play!"
+    )
+
 
 def main():
     handler = SocketModeHandler(app)

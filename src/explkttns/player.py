@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, List, Set
 
-from explkttns.card import Card
+from src.explkttns.card import Card
 
 @dataclass
 class Player:

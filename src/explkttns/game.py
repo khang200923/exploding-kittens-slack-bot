@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 import random
 from typing import List
 
-from explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, SeeTheFuture, Shuffle, Skip, all_setup_cards, card_enum_mapping
-from explkttns.input import InputTypes
-from explkttns.player import Player
+from src.explkttns.card import Attack, Card, CardEnum, Defuse, ExplodingKitten, Favor, Nope, SeeTheFuture, Shuffle, Skip, all_setup_cards, card_enum_mapping
+from src.explkttns.input import InputTypes
+from src.explkttns.player import Player
 
 class IllegalMoveError(Exception):
     pass
