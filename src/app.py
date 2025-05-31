@@ -19,7 +19,9 @@ class GameState(Enum):
     COMPLETED = "completed"
 
 MsgId = Tuple[str, str] # (channel_id, ts)
+MsgIdUser = Tuple[str, str, str] # (channel_id, ts, user_id)
 data: Dict[MsgId, Any] = {}
+queue: Dict[MsgIdUser, Any] = {}
 
 @app.command("/explkttns")
 def handle_explkttns(ack, say, command, respond):
@@ -288,6 +290,25 @@ def handle_start_game(ack, body, client):
         text=f"It's <@{data[(channel, thread_ts)]['game'].current_player}> turn to play!"
     )
 
+@app.event("message")
+def handle_message(ack, body):
+    ack()
+
+    channel = body["event"]["channel"]
+    thread_ts = body["event"].get("thread_ts", None)
+    user = body["event"]["user"]
+    if thread_ts is None or (channel, thread_ts) not in data:
+        return
+    if data[(channel, thread_ts)]['game_state'] != GameState.IN_PROGRESS:
+        return
+    if user not in data[(channel, thread_ts)]['players']:
+        return
+    if 'text' not in body['event']:
+        return
+    text = body['event']['text'].strip().lower()
+    if text.startswith("#") or text.startswith("//") or text.startswith(".//"):
+        return
+    queue[(channel, thread_ts, user)] = body['event']['text']
 
 def main():
     handler = SocketModeHandler(app)
