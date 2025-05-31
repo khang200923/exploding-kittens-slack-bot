@@ -55,6 +55,7 @@ def handle_explkttns(ack, say, command, respond):
                     }
                 ]
             )
+        return
 
     if command['text'].strip().lower() != "new":
         respond(text="Invalid command. Use `/explkttns new` to start a new game.")
@@ -75,8 +76,7 @@ def handle_explkttns(ack, say, command, respond):
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "Type `/explkttns ui_guide` for a guide on how to use the interface.",
-                        "emoji": True
+                        "text": "Type `/explkttns ui_guide` for a guide on how to use the interface."
                     }
                 ]
             }

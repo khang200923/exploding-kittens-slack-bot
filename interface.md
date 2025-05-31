@@ -2,7 +2,7 @@ To speed things up while playing Exploding Kittens on slack, I made it so that y
 - You always have to send a message in the thread to do something.
 - Use the following keys as a prefix:
     - `h` to look at your hand, showing the cards you have.
-    - `p[card(s)]` to play a card. For example, `pa` plays an attack card, `p33` plays two Beard Cat, etc.
+    - `p[card(s)]` to play a card. For example, `pa` plays an attack card, `p33` plays two Beard Cats, etc.
     - `d` to draw a card from the deck.
     - `e` to end your turn. Most of the time, you will need to draw a card before ending your turn
 
