@@ -325,7 +325,31 @@ def process_queue():
         execute(*action)
 
 def execute(channel: str, thread_ts: str, user: str, text: str):
-    ...
+    def say(text: str, blocks: list | None = None, metadata: dict | None = None):
+        app.client.chat_postMessage(
+            channel=channel,
+            text=text,
+            blocks=blocks,
+            thread_ts=thread_ts,
+            metadata=metadata
+        )
+    def respond(text: str, blocks: list | None = None, metadata: dict | None = None):
+        app.client.chat_postEphemeral(
+            channel=channel,
+            text=text,
+            blocks=blocks,
+            user=user,
+            thread_ts=thread_ts,
+            metadata=metadata
+        )
+    local = data[(channel, thread_ts)]
+    game: Game = local['game']
+
+    if text == "h":
+        say(
+            text="Your hand: " + ", ".join(f"{i+1}. {card.name}" for i, card in enumerate(game.player_by_name(user).hand))
+        )
+        return
 
 def main():
     handler = SocketModeHandler(app)

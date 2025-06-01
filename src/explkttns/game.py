@@ -172,3 +172,9 @@ class Game:
 
         # cat cards alone don't have any effect
         return
+
+    def player_by_name(self, name: str) -> Player:
+        for player in self.players:
+            if player.name == name:
+                return player
+        raise ValueError(f"Player with name {name} not found.")
