@@ -1,4 +1,6 @@
+from collections import deque
 from enum import Enum
+import threading
 from typing import Any, Dict, Tuple
 from dotenv import load_dotenv
 from slack_bolt import App
@@ -20,8 +22,10 @@ class GameState(Enum):
 
 MsgId = Tuple[str, str] # (channel_id, ts)
 MsgIdUser = Tuple[str, str, str] # (channel_id, ts, user_id)
+MsgAction = Tuple[str, str, str, str] # (channel_id, ts, user_id, action)
 data: Dict[MsgId, Any] = {}
-queue: Dict[MsgIdUser, Any] = {}
+queue: deque[MsgAction] = deque()
+queue_condition = threading.Condition()
 
 @app.command("/explkttns")
 def handle_explkttns(ack, say, command, respond):
@@ -287,7 +291,7 @@ def handle_start_game(ack, body, client):
     client.chat_postMessage(
         channel=channel,
         thread_ts=thread_ts,
-        text=f"It's <@{data[(channel, thread_ts)]['game'].current_player}> turn to play!"
+        text=f"It's <@{data[(channel, thread_ts)]['game'].current_player}> turn to play"
     )
 
 @app.event("message")
@@ -308,10 +312,24 @@ def handle_message(ack, body):
     text = body['event']['text'].strip().lower()
     if text.startswith("#") or text.startswith("//") or text.startswith(".//"):
         return
-    queue[(channel, thread_ts, user)] = body['event']['text']
+    with queue_condition:
+        queue.append((channel, thread_ts, user, text))
+        queue_condition.notify()
+
+def process_queue():
+    while True:
+        with queue_condition:
+            while not queue:
+                queue_condition.wait()
+            action = queue.popleft()
+        execute(*action)
+
+def execute(channel: str, thread_ts: str, user: str, text: str):
+    ...
 
 def main():
     handler = SocketModeHandler(app)
+    threading.Thread(target=process_queue, daemon=True).start()
     handler.start()
 
 if __name__ == "__main__":
