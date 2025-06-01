@@ -1,5 +1,6 @@
 from collections import deque
 from enum import Enum
+import random
 import threading
 from typing import Any, Dict, Tuple
 from dotenv import load_dotenv
@@ -226,8 +227,23 @@ def handle_invite_modal(ack, view, body, client):
     values = view["state"]["values"]
     invite_modal = next(x["invite-modal"] for x in values.values() if "invite-modal" in x)
     users = invite_modal["selected_users"]
+    local = data[(view["private_metadata"].split()[0], view["private_metadata"].split()[1])]
 
-    if len(data[(view["private_metadata"].split()[0], view["private_metadata"].split()[1])]['players'] | users) > 5:
+    channel_members = client.conversations_members(
+        channel=view["private_metadata"].split()[0]
+    ).get("members", [])
+
+    for user in users:
+        if user not in channel_members:
+            client.chat_postEphemeral(
+                channel=view["private_metadata"].split()[0],
+                thread_ts=view["private_metadata"].split()[1],
+                user=body["user"]["id"],
+                text=f"<@{user}> is not a member of this channel."
+            )
+            return
+
+    if len(local['players'] | set(users)) > 5:
         client.chat_postEphemeral(
             channel=view["private_metadata"].split()[0],
             thread_ts=view["private_metadata"].split()[1],
@@ -236,7 +252,7 @@ def handle_invite_modal(ack, view, body, client):
         )
         return
 
-    data[(view["private_metadata"].split()[0], view["private_metadata"].split()[1])]['players'].update(users)
+    local['players'].update(users)
     client.chat_postMessage(
         channel=view["private_metadata"].split()[0],
         thread_ts=view["private_metadata"].split()[1],
@@ -279,19 +295,31 @@ def handle_start_game(ack, body, client):
         return
 
     data[(channel, thread_ts)]['game_state'] = GameState.IN_PROGRESS
+    players = list(data[(channel, thread_ts)]['players'])
+    if len(players) < 2:
+        client.chat_postEphemeral(
+            channel=channel,
+            thread_ts=thread_ts,
+            user=body["user"]["id"],
+            text="You need at least 2 players to start the game."
+        )
+        return
+    assert len(players) <= 5, "There should be at most 5 players in the game. Huh"
+    random.shuffle(players)
     data[(channel, thread_ts)]['game'] = Game(
         names=list(data[(channel, thread_ts)]['players'])
     )
+    game: Game = data[(channel, thread_ts)]['game']
 
     client.chat_postMessage(
         channel=channel,
         thread_ts=thread_ts,
-        text="The game has started! Players are: " + ", ".join(f"<@{x}>" for x in data[(channel, thread_ts)]['players'])
+        text="The game has started! Players take turns as follows:" + " -> ".join(f"<@{x}>" for x in data[(channel, thread_ts)]['players'])
     )
     client.chat_postMessage(
         channel=channel,
         thread_ts=thread_ts,
-        text=f"It's <@{data[(channel, thread_ts)]['game'].current_player}> turn to play"
+        text=f"It's <@{game.players[game.current_player].name}> turn to play"
     )
 
 @app.event("message")
@@ -346,10 +374,12 @@ def execute(channel: str, thread_ts: str, user: str, text: str):
     game: Game = local['game']
 
     if text == "h":
-        say(
-            text="Your hand: " + ", ".join(f"{i+1}. {card.name}" for i, card in enumerate(game.player_by_name(user).hand))
+        respond(
+            text="Your hand: " + "\n".join(f"- {i+1}. {card.name}" for i, card in enumerate(game.player_by_name(user).hand))
         )
         return
+
+    raise NotImplementedError("Command not implemented yet")
 
 def main():
     handler = SocketModeHandler(app)
